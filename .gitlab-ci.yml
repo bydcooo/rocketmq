@@ -1,0 +1,49 @@
+variables:
+  K8S_ENV: develop
+  EXTERNAL_IPS: "[]"
+  BROKER_JAVA_OPT_EXT: "-server -Xms512m -Xmx512m -Xmn256m"
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: never
+    - if: $CI_COMMIT_REF_NAME =~ /^dev-/
+      variables:
+        K8S_ENV: develop
+        EXTERNAL_IPS: "[10.9.18.191]"
+    - if: $CI_COMMIT_REF_NAME =~ /^stg-/
+      variables:
+        K8S_ENV: stage
+        EXTERNAL_IPS: "[10.17.9.162]"
+    - if: $CI_COMMIT_REF_NAME == "prd"
+      variables:
+        K8S_ENV: production
+        EXTERNAL_IPS: "[10.17.10.140]"
+    - when: never
+
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: docker:stable
+  script:
+    - docker build -t $IMAGE_TAG .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $IMAGE_TAG
+
+deploy:
+  stage: deploy
+  image: dtzar/helm-kubectl
+  tags:
+    - k8s-deploy
+
+  environment:
+    name: $K8S_ENV
+  script:
+    - envsubst < deploy/namesrv.yml | kubectl apply -f -
+    - envsubst < deploy/broker.yml | kubectl apply -f -
+    - envsubst < deploy/dashboard.yml | kubectl apply -f -
