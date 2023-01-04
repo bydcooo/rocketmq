@@ -42,7 +42,7 @@ RUN set -eux; \
     rm -rf /tmp/*
 
 # Copy customized scripts
-COPY / ${ROCKETMQ_HOME}/bin/
+COPY scripts/ ${ROCKETMQ_HOME}/bin/
 
 RUN chown -R ${uid}:${gid} ${ROCKETMQ_HOME}
 
