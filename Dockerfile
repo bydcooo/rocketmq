@@ -3,7 +3,7 @@
 #RUN yum install -y java-1.8.0-openjdk-devel.x86_64 unzip gettext nmap-ncat openssl, which gnupg, telnet \
 # && yum clean all -y
 
-FROM openjdk:8-jdk
+FROM openjdk:8-jdk AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		bash libapr1 unzip telnet wget gnupg ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
