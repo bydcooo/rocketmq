@@ -1,74 +1,35 @@
-FROM centos:7 AS build
+FROM java:openjdk-8u111-alpine
+MAINTAINER wzy
 
-RUN yum install -y java-1.8.0-openjdk-devel.x86_64 unzip gettext nmap-ncat openssl, which gnupg, telnet \
- && yum clean all -y
+# set environment
+ENV JVM_XMS="1g" \
+    JVM_XMX="1g" \
+    JVM_XMN="512m" \
+    JVM_MS="128m" \
+    JVM_MMS="320m"
 
-#FROM openjdk:8-jdk
-#RUN apt-get update && apt-get install -y --no-install-recommends \
-#		bash libapr1 unzip telnet wget gnupg ca-certificates \
-#	&& rm -rf /var/lib/apt/lists/*
+ENV ROCKETMQ_VERSION 4.9.4
+ENV ROCKETMQ_HOME /opt/rocketmq-${ROCKETMQ_VERSION}
+WORKDIR ${ROCKETMQ_HOME}
 
-ARG user=rocketmq
-ARG group=rocketmq
-ARG uid=3000
-ARG gid=3000
 
-# RocketMQ is run with user `rocketmq`, uid = 3000
-# If you bind mount a volume from the host or a data container,
-# ensure you use the same uid
-RUN groupadd -g ${gid} ${group} \
-    && useradd -u ${uid} -g ${gid} -m -s /bin/bash ${user}
+# 设置时间，东八区
+RUN set -x \
+    && rm -f /etc/localtime \
+    && ln -snf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone
 
-ARG version=4.9.4
+ADD bin bin
+ADD conf conf
+ADD lib lib
 
-# Rocketmq version
-ENV ROCKETMQ_VERSION ${version}
+RUN mkdir -p \
+	/opt/logs \
+	/opt/store
 
-# Rocketmq home
-ENV ROCKETMQ_HOME  /home/rocketmq/rocketmq-${ROCKETMQ_VERSION}
+VOLUME /opt/logs \
+       /opt/store
 
-WORKDIR  ${ROCKETMQ_HOME}
-
-RUN set -eux; \
-    curl -L https://archive.apache.org/dist/rocketmq/${ROCKETMQ_VERSION}/rocketmq-all-${ROCKETMQ_VERSION}-bin-release.zip -o rocketmq.zip; \
-    curl -L https://archive.apache.org/dist/rocketmq/${ROCKETMQ_VERSION}/rocketmq-all-${ROCKETMQ_VERSION}-bin-release.zip.asc -o rocketmq.zip.asc; \
-    #https://www.apache.org/dist/rocketmq/KEYS
-	curl -L https://www.apache.org/dist/rocketmq/KEYS -o KEYS; \
-	\
-	gpg --import KEYS; \
-    gpg --batch --verify rocketmq.zip.asc rocketmq.zip ; \
-    unzip rocketmq.zip ; \
-	mv rocketmq*/* . ; \
-	rmdir rocketmq-*  ; \
-	rm rocketmq.zip rocketmq.zip.asc KEYS
-
-# add scripts
-COPY scripts/ ${ROCKETMQ_HOME}/bin/
-
-RUN chown -R ${uid}:${gid} ${ROCKETMQ_HOME}
-
-# expose namesrv port
 EXPOSE 9876
-
-# add customized scripts for namesrv
-RUN mv ${ROCKETMQ_HOME}/bin/runserver-customize.sh ${ROCKETMQ_HOME}/bin/runserver.sh \
- && chmod a+x ${ROCKETMQ_HOME}/bin/runserver.sh \
- && chmod a+x ${ROCKETMQ_HOME}/bin/mqnamesrv
-
-# expose broker ports
-EXPOSE 10909 10911 10912
-
-# add customized scripts for broker
-RUN mv ${ROCKETMQ_HOME}/bin/runbroker-customize.sh ${ROCKETMQ_HOME}/bin/runbroker.sh \
- && chmod a+x ${ROCKETMQ_HOME}/bin/runbroker.sh \
- && chmod a+x ${ROCKETMQ_HOME}/bin/mqbroker
-
-# export Java options
-RUN export JAVA_OPT=" -Duser.home=/opt"
-
-# Add ${JAVA_HOME}/lib/ext as java.ext.dirs
-RUN sed -i 's/${JAVA_HOME}\/jre\/lib\/ext/${JAVA_HOME}\/jre\/lib\/ext:${JAVA_HOME}\/lib\/ext/' ${ROCKETMQ_HOME}/bin/tools.sh
-
-USER ${user}
-
-WORKDIR ${ROCKETMQ_HOME}/bin
+RUN chmod +x bin/mqnamesrv
+CMD cd ${ROCKETMQ_HOME}/bin && export JAVA_OPT=" -Duser.home=/opt" && sh mqnamesrv
