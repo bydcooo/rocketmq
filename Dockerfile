@@ -1,32 +1,58 @@
-FROM java:8
+#
+# Program:
+#     Make RocketMQ docker image
+#
+#
 
-ENV ROCKETMQ_VERSION 4.9.4
+FROM onesoso/java:8
 
-ENV NAMESRV_HOME /home/rocketmq/namesrv-${ROCKETMQ_VERSION}
+MAINTAINER wangziyang
 
-ENV JAVA_OPT "-Duser.home=/home/rocketmq"
+ARG version
 
-WORKDIR ${NAMESRV_HOME}
+# Rocketmq version
+ENV ROCKETMQ_VERSION ${version}
 
-RUN mkdir -p /home/rocketmq/logs /home/rocketmq/store
+# Rocketmq home
+ENV ROCKETMQ_HOME /opt/rocketmq
 
+WORKDIR  ${ROCKETMQ_HOME}
+
+# get rocketmq program
 RUN curl https://dist.apache.org/repos/dist/release/rocketmq/${ROCKETMQ_VERSION}/rocketmq-all-${ROCKETMQ_VERSION}-bin-release.zip -o rocketmq.zip \
-    && unzip rocketmq.zip \
-    && rm rocketmq.zip \
-    && mv rocketmq-all-${ROCKETMQ_VERSION}-bin-release/* ./ \
-    && rm -rf rocketmq-all-${ROCKETMQ_VERSION}-bin-release \
-    && cd ${NAMESRV_HOME}/bin \
-    && sed -i '70s/^/#/' runserver.sh \
-    && sed -i '74,77s/^/#/' runserver.sh \
-    && sed -i 's#-Xms[0-9]\+[gm]#-Xms512m#' runserver.sh \
-    && sed -i 's#-Xmx[0-9]\+[gm]#-Xmx512m#' runserver.sh \
-    && sed -i 's#-Xmn[0-9]\+[gm]#-Xmn128m#' runserver.sh \
-    && sed -i 's#-XX:MetaspaceSize=[0-9]\+[gm]#-XX:MetaspaceSize=128m#' runserver.sh \
-    && sed -i 's#-XX:MaxMetaspaceSize=[0-9]\+[gm]#-XX:MaxMetaspaceSize=320m#' runserver.sh \
-    && chmod +x ./mqnamesrv
+ && unzip rocketmq.zip \
+ && mv rocketmq-all*/* . \
+ && rmdir rocketmq-all*  \
+ && rm rocketmq.zip
 
-CMD cd ${NAMESRV_HOME}/bin && sh mqnamesrv
+# add scripts
+COPY scripts/ ${ROCKETMQ_HOME}/bin/
 
+VOLUME ${ROCKETMQ_HOME}/conf 
+
+# expose namesrv port
 EXPOSE 9876
 
-VOLUME ["/home/rocketmq/logs", "/home/rocketmq/store"]
+# add customized scripts for mqnamesrv
+RUN mv ${ROCKETMQ_HOME}/bin/mqnamesrv-customize ${ROCKETMQ_HOME}/bin/mqnamesrv \
+ && chmod +x ${ROCKETMQ_HOME}/bin/mqnamesrv
+
+# add customized scripts for runserver.sh
+RUN mv ${ROCKETMQ_HOME}/bin/runserver-customize.sh ${ROCKETMQ_HOME}/bin/runserver.sh \
+ && chmod +x ${ROCKETMQ_HOME}/bin/runserver.sh
+
+# expose broker ports
+EXPOSE 10909 10911
+
+# add customized scripts for mqbroker
+RUN mv ${ROCKETMQ_HOME}/bin/mqbroker-customize ${ROCKETMQ_HOME}/bin/mqbroker \
+ && chmod +x ${ROCKETMQ_HOME}/bin/mqbroker
+
+# add customized scripts for runuroker.sh
+RUN mv ${ROCKETMQ_HOME}/bin/runbroker-customize.sh ${ROCKETMQ_HOME}/bin/runbroker.sh \
+ && chmod +x ${ROCKETMQ_HOME}/bin/runbroker.sh
+
+# export Java options
+RUN export JAVA_OPT=" -Duser.home=/opt"
+
+WORKDIR ${ROCKETMQ_HOME}/bin
