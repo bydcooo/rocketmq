@@ -116,6 +116,6 @@ spec:
         lifecycle:
           postStart:
             exec:
-              command: ["sh","-c", "cp /home/rocketmq/config/$(hostname -s).conf /root/rocketmq-4.5.0/bin/broker.conf"]
+              command: ["sh","-c", "cp /home/rocketmq/config/$(hostname -s).conf /home/rocketmq/rocketmq-4.9.4/bin/broker.conf"]
         command: ["sh","mqbroker", "-n", "rocketmq-cluster-namesrv:9876", "-c", "broker.conf"]
       
