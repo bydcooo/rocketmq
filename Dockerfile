@@ -1,4 +1,4 @@
-FROM java:openjdk-8u111-alpine
+FROM java:openjdk-8u111-alpine AS budil
 MAINTAINER wangziyang
 
 # set environment
