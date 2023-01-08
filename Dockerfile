@@ -1,5 +1,5 @@
 FROM java:openjdk-8u111-alpine
-MAINTAINER wzy
+MAINTAINER wangziyang
 
 # set environment
 ENV JVM_XMS="1g" \
